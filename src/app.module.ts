@@ -10,6 +10,7 @@ import { GlobalExceptionFilter } from './common/errors/global-exception.filter';
 import { LoggingModule } from './common/logging/logging.module';
 import { TenantContextModule } from './common/tenant-context/tenant-context.module';
 import { AuditModule } from './modules/audit/audit.module';
+import { AuthModule } from './modules/auth/auth.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { AuditModule } from './modules/audit/audit.module';
     PostgresModule,
     MongoModule,
     AuditModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [
