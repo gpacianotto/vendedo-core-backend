@@ -1,8 +1,16 @@
-import { Controller, Get, NotFoundException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  NotFoundException,
+  Post,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { TenantContextService } from '../../common/tenant-context/tenant-context.service';
 import { Tenant } from '../tenants/entities/tenant.entity';
+import { TenantsService } from '../tenants/tenants.service';
 import { User } from '../users/entities/user.entity';
 
 export interface MeResponse {
@@ -23,6 +31,7 @@ export interface MeResponse {
 export class MeController {
   constructor(
     private readonly tenantContextService: TenantContextService,
+    private readonly tenantsService: TenantsService,
     @InjectRepository(User) private readonly usersRepository: Repository<User>,
     @InjectRepository(Tenant)
     private readonly tenantsRepository: Repository<Tenant>,
@@ -57,5 +66,11 @@ export class MeController {
           }
         : null,
     };
+  }
+
+  @Post('me/unlink')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  unlinkSelf(): Promise<void> {
+    return this.tenantsService.unlinkSelf();
   }
 }

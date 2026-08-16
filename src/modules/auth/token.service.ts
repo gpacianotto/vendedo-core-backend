@@ -9,7 +9,7 @@ import { JwtPayload } from './jwt-payload';
 
 export interface SignAccessTokenParams {
   userId: string;
-  tenantId: string;
+  tenantId: string | null;
   role: Role;
   sessionId: string;
 }

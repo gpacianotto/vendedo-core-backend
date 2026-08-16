@@ -5,11 +5,9 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { IS_PUBLIC_KEY } from '../../../common/auth/public.decorator';
 import { AuthenticatedRequest } from '../../../common/auth/authenticated-request';
-import { Session } from '../entities/session.entity';
+import { SessionsService } from '../sessions/sessions.service';
 import { TokenService } from '../token.service';
 
 /**
@@ -22,9 +20,8 @@ import { TokenService } from '../token.service';
 export class JwtAuthGuard implements CanActivate {
   constructor(
     private readonly tokenService: TokenService,
+    private readonly sessionsService: SessionsService,
     private readonly reflector: Reflector,
-    @InjectRepository(Session)
-    private readonly sessionRepository: Repository<Session>,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -48,9 +45,7 @@ export class JwtAuthGuard implements CanActivate {
         throw new UnauthorizedException('Token inválido ou expirado.');
       });
 
-    const session = await this.sessionRepository.findOne({
-      where: { id: payload.sid },
-    });
+    const session = await this.sessionsService.findById(payload.sid);
     if (!session || session.revokedAt) {
       throw new UnauthorizedException('Sessão revogada.');
     }

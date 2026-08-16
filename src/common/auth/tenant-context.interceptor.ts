@@ -25,6 +25,9 @@ export class TenantContextInterceptor implements NestInterceptor {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const authContext = request.authContext;
 
+    // Sem authContext = rota pública, nada a popular. Usuário UNLINKED
+    // (tenantId null) ainda populada o contexto — getUserId()/getRole()
+    // continuam funcionando; só getTenantId() lança 403 nesse caso.
     if (!authContext) {
       return next.handle();
     }

@@ -1,7 +1,7 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
-import { DataSource, EntityManager, Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { AppException } from '../../common/errors/app.exception';
 import { normalizeEmail } from '../../common/utils/normalize-email';
 import { isUniqueConstraintViolation } from '../../common/utils/is-unique-constraint-violation';
@@ -9,12 +9,13 @@ import { AuditService } from '../audit/audit.service';
 import { AuditAction } from '../audit/audit-action';
 import { Subscription } from '../billing/entities/subscription.entity';
 import { Tenant } from '../tenants/entities/tenant.entity';
+import { TenantsService } from '../tenants/tenants.service';
 import { User } from '../users/entities/user.entity';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { RegisterDto } from './dto/register.dto';
-import { Session } from './entities/session.entity';
 import { AuthTokensResponse } from './jwt-payload';
+import { SessionsService } from './sessions/sessions.service';
 import { TokenService } from './token.service';
 
 const BCRYPT_COST = 10;
@@ -24,10 +25,10 @@ export class AuthService {
   constructor(
     @InjectDataSource() private readonly dataSource: DataSource,
     @InjectRepository(User) private readonly usersRepository: Repository<User>,
-    @InjectRepository(Session)
-    private readonly sessionsRepository: Repository<Session>,
     private readonly tokenService: TokenService,
+    private readonly sessionsService: SessionsService,
     private readonly auditService: AuditService,
+    private readonly tenantsService: TenantsService,
   ) {}
 
   async register(dto: RegisterDto): Promise<AuthTokensResponse> {
@@ -63,8 +64,16 @@ export class AuthService {
         });
       }
 
-      // joinPolicy.allowSelfRegistration (Mongo tenant_configs) é checado a
-      // partir de 03-tenants.md — aqui o tenant mínimo já vale como aceito.
+      const allowSelfRegistration =
+        await this.tenantsService.isSelfRegistrationAllowed(tenant.id);
+      if (!allowSelfRegistration) {
+        throw new AppException({
+          status: HttpStatus.FORBIDDEN,
+          code: 'TENANT_SELF_REGISTRATION_DISABLED',
+          message:
+            'Este estabelecimento não aceita autocadastro. Peça um convite ao responsável.',
+        });
+      }
 
       // Lock pessimista na subscription: serializa registros concorrentes no
       // mesmo tenant para a contagem de assentos abaixo ser atômica (BE-BILL-001).
@@ -122,7 +131,7 @@ export class AuthService {
         manager,
       );
 
-      return this.issueTokens(user, manager);
+      return this.sessionsService.issueTokens(user, manager);
     });
   }
 
@@ -149,13 +158,10 @@ export class AuthService {
       throw invalidCredentials();
     }
 
-    if (user.status === 'UNLINKED') {
-      throw new AppException({
-        status: HttpStatus.FORBIDDEN,
-        code: 'ACCOUNT_UNLINKED',
-        message: 'Sua conta não está vinculada a nenhum estabelecimento.',
-      });
-    }
+    // UNLINKED pode logar normalmente (token com tenantId null) — é assim
+    // que o vendedor independente se autentica para chamar POST /tenant e
+    // criar seu próprio estabelecimento (BE-TEN-001). GET /me já retorna
+    // tenant: null nesse caso, para o frontend mostrar a tela adequada.
     if (user.status === 'INACTIVE') {
       throw new AppException({
         status: HttpStatus.FORBIDDEN,
@@ -176,14 +182,13 @@ export class AuthService {
       userId: user.id,
     });
 
-    return this.issueTokens(user);
+    return this.sessionsService.issueTokens(user);
   }
 
   async refresh(dto: RefreshDto): Promise<AuthTokensResponse> {
     const tokenHash = this.tokenService.hashRefreshToken(dto.refreshToken);
-    const session = await this.sessionsRepository.findOne({
-      where: { refreshTokenHash: tokenHash },
-    });
+    const session =
+      await this.sessionsService.findByRefreshTokenHash(tokenHash);
 
     const invalidRefreshToken = () =>
       new AppException({
@@ -199,66 +204,26 @@ export class AuthService {
     const user = await this.usersRepository.findOne({
       where: { id: session.userId },
     });
-    if (!user || user.status !== 'ACTIVE') {
+    // UNLINKED pode renovar sessão (mesmo raciocínio do login); só INACTIVE bloqueia.
+    if (!user || user.status === 'INACTIVE') {
       throw invalidRefreshToken();
     }
 
     // Rotação: a sessão usada é revogada e uma nova é emitida — um refresh
     // token só pode ser usado uma vez.
-    session.revokedAt = new Date();
-    await this.sessionsRepository.save(session);
+    await this.sessionsService.revoke(session);
 
-    return this.issueTokens(user);
+    return this.sessionsService.issueTokens(user);
   }
 
   async logout(userId: string, dto: RefreshDto): Promise<void> {
     const tokenHash = this.tokenService.hashRefreshToken(dto.refreshToken);
-    const session = await this.sessionsRepository.findOne({
-      where: { refreshTokenHash: tokenHash, userId },
-    });
+    const session =
+      await this.sessionsService.findByRefreshTokenHash(tokenHash);
 
-    // Idempotente: sessão já revogada/inexistente não é erro.
-    if (session && !session.revokedAt) {
-      session.revokedAt = new Date();
-      await this.sessionsRepository.save(session);
+    // Idempotente: sessão já revogada/inexistente/de outro usuário não é erro.
+    if (session && session.userId === userId && !session.revokedAt) {
+      await this.sessionsService.revoke(session);
     }
-  }
-
-  private async issueTokens(
-    user: User,
-    manager?: EntityManager,
-  ): Promise<AuthTokensResponse> {
-    const sessionRepository = manager
-      ? manager.getRepository(Session)
-      : this.sessionsRepository;
-
-    const {
-      token: refreshToken,
-      tokenHash,
-      expiresAt,
-    } = this.tokenService.generateRefreshToken();
-
-    const session = sessionRepository.create({
-      userId: user.id,
-      tenantId: user.tenantId!,
-      refreshTokenHash: tokenHash,
-      expiresAt,
-    });
-    await sessionRepository.save(session);
-
-    const { token: accessToken, expiresInSeconds } =
-      this.tokenService.signAccessToken({
-        userId: user.id,
-        tenantId: user.tenantId!,
-        role: user.role,
-        sessionId: session.id,
-      });
-
-    return {
-      accessToken,
-      refreshToken,
-      tokenType: 'Bearer',
-      expiresIn: expiresInSeconds,
-    };
   }
 }

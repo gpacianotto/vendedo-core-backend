@@ -1,12 +1,17 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { Injectable } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { TenantContext } from './tenant-context';
 
 /**
  * Fonte única do tenantId/userId/role de uma requisição autenticada.
- * O contexto é populado pelo JwtAuthGuard (módulo 02-identity-auth) logo após
- * validar o token — nenhum outro ponto do código deve aceitar tenantId vindo
- * de body/query/params para fins de autorização ou de filtro de dados.
+ * O contexto é populado pelo JwtAuthGuard + TenantContextInterceptor
+ * (módulo 02-identity-auth) logo após validar o token — nenhum outro ponto
+ * do código deve aceitar tenantId vindo de body/query/params para fins de
+ * autorização ou de filtro de dados.
  */
 @Injectable()
 export class TenantContextService {
@@ -19,9 +24,7 @@ export class TenantContextService {
   getContext(): TenantContext {
     const context = this.storage.getStore();
     if (!context) {
-      throw new Error(
-        'TenantContext não disponível. Esta chamada precisa ocorrer dentro de uma requisição autenticada, após o JwtAuthGuard popular o contexto.',
-      );
+      throw new UnauthorizedException('Requisição não autenticada.');
     }
     return context;
   }
@@ -30,8 +33,15 @@ export class TenantContextService {
     return this.storage.getStore();
   }
 
+  /** Lança 403 se o usuário autenticado não estiver vinculado a um tenant (UNLINKED). */
   getTenantId(): string {
-    return this.getContext().tenantId;
+    const { tenantId } = this.getContext();
+    if (!tenantId) {
+      throw new ForbiddenException(
+        'Você precisa estar vinculado a um estabelecimento para executar esta ação.',
+      );
+    }
+    return tenantId;
   }
 
   getUserId(): string {

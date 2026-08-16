@@ -20,8 +20,9 @@ export class Session {
   @JoinColumn({ name: 'user_id' })
   user?: User;
 
-  @Column({ type: 'uuid' })
-  tenantId: string;
+  // Nullable: sessão de usuário UNLINKED (ex.: antes de criar seu tenant).
+  @Column({ type: 'uuid', nullable: true })
+  tenantId: string | null;
 
   // Refresh token nunca em texto puro — apenas o hash (seção 12).
   @Column({ unique: true })
