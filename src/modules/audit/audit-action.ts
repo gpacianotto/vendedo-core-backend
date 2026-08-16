@@ -10,6 +10,7 @@ export const AuditAction = {
   TENANT_CREATED: 'TENANT_CREATED',
   TENANT_CONFIG_UPDATED: 'TENANT_CONFIG_UPDATED',
   USER_UNLINKED: 'USER_UNLINKED',
+  USER_TEAM_MEMBER_UPDATED: 'USER_TEAM_MEMBER_UPDATED',
 } as const;
 
 export type AuditAction = (typeof AuditAction)[keyof typeof AuditAction];

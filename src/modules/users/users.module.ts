@@ -1,13 +1,15 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AuditModule } from '../audit/audit.module';
+import { SessionsModule } from '../auth/sessions/sessions.module';
 import { User } from './entities/user.entity';
+import { UsersController } from './users.controller';
+import { UsersService } from './users.service';
 
-/**
- * Módulo mínimo (bootstrap): só registra a entidade `User` para o módulo de
- * auth. Perfil/equipe/gestão pelo OWNER chegam em 04-users.md.
- */
 @Module({
-  imports: [TypeOrmModule.forFeature([User])],
-  exports: [TypeOrmModule],
+  imports: [TypeOrmModule.forFeature([User]), AuditModule, SessionsModule],
+  controllers: [UsersController],
+  providers: [UsersService],
+  exports: [TypeOrmModule, UsersService],
 })
 export class UsersModule {}
