@@ -1,0 +1,36 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: vendedo-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_DATABASE:-vendedo}
+    ports:
+      - '${DB_PORT:-5432}:5432'
+    volumes:
+      - vendedo_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${DB_USERNAME:-postgres} -d ${DB_DATABASE:-vendedo}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  mongo:
+    image: mongo:7
+    container_name: vendedo-mongo
+    restart: unless-stopped
+    ports:
+      - '27017:27017'
+    volumes:
+      - vendedo_mongo_data:/data/db
+    healthcheck:
+      test: ['CMD', 'mongosh', '--quiet', '--eval', 'db.runCommand({ ping: 1 })']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  vendedo_postgres_data:
+  vendedo_mongo_data:
