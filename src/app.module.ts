@@ -12,6 +12,7 @@ import { TenantContextModule } from './common/tenant-context/tenant-context.modu
 import { AuditModule } from './modules/audit/audit.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { CustomersModule } from './modules/customers/customers.module';
+import { FollowUpsModule } from './modules/follow-ups/follow-ups.module';
 import { OpportunitiesModule } from './modules/opportunities/opportunities.module';
 
 @Module({
@@ -28,6 +29,7 @@ import { OpportunitiesModule } from './modules/opportunities/opportunities.modul
     AuthModule,
     CustomersModule,
     OpportunitiesModule,
+    FollowUpsModule,
   ],
   controllers: [AppController],
   providers: [
