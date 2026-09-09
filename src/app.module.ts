@@ -12,6 +12,7 @@ import { TenantContextModule } from './common/tenant-context/tenant-context.modu
 import { AuditModule } from './modules/audit/audit.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { CustomersModule } from './modules/customers/customers.module';
+import { OpportunitiesModule } from './modules/opportunities/opportunities.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { CustomersModule } from './modules/customers/customers.module';
     AuditModule,
     AuthModule,
     CustomersModule,
+    OpportunitiesModule,
   ],
   controllers: [AppController],
   providers: [
