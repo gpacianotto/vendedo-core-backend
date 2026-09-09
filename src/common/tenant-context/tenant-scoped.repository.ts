@@ -42,6 +42,13 @@ export abstract class TenantScopedRepository<T extends TenantOwnedEntity> {
     });
   }
 
+  findAndCount(options: FindManyOptions<T> = {}): Promise<[T[], number]> {
+    return this.repository.findAndCount({
+      ...options,
+      where: this.withTenant(options.where),
+    });
+  }
+
   findOne(options: FindOneOptions<T>): Promise<T | null> {
     return this.repository.findOne({
       ...options,
@@ -63,7 +70,13 @@ export abstract class TenantScopedRepository<T extends TenantOwnedEntity> {
     } as DeepPartial<T>);
   }
 
+  // Muta `entity` em vez de espalhar uma cópia: `repository.save()` só
+  // popula campos gerados (id, updatedAt) de volta na própria referência
+  // passada — espalhar quebraria isso silenciosamente para quem chama
+  // save(entity) e depois lê entity.id, seguindo o padrão do resto do
+  // código (ex.: AuthService.register()).
   save(entity: DeepPartial<T>): Promise<T> {
-    return this.repository.save({ ...entity, tenantId: this.tenantId } as T);
+    (entity as Partial<TenantOwnedEntity>).tenantId = this.tenantId;
+    return this.repository.save(entity as T);
   }
 }

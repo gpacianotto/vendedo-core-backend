@@ -11,6 +11,7 @@ import { LoggingModule } from './common/logging/logging.module';
 import { TenantContextModule } from './common/tenant-context/tenant-context.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { CustomersModule } from './modules/customers/customers.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { AuthModule } from './modules/auth/auth.module';
     MongoModule,
     AuditModule,
     AuthModule,
+    CustomersModule,
   ],
   controllers: [AppController],
   providers: [
