@@ -8,11 +8,6 @@ import {
 import { SUBSCRIPTION_STATUSES } from '../subscription-status';
 import type { SubscriptionStatus } from '../subscription-status';
 
-/**
- * Bootstrap mínimo (ver 02-identity-auth.md): só os campos necessários para
- * o registro checar limite de assentos. `provider_customer_id`/`renews_at`
- * e o restante do módulo de billing chegam em 10-billing.md.
- */
 @Entity('subscriptions')
 export class Subscription {
   @PrimaryGeneratedColumn('uuid')
@@ -32,6 +27,14 @@ export class Subscription {
 
   @Column({ type: 'int' })
   maxSellers: number;
+
+  // Referência a um customer id de um provider de pagamento futuro — nunca
+  // preenchido no MVP (nenhum dado de pagamento é processado aqui).
+  @Column({ type: 'varchar', nullable: true })
+  providerCustomerId: string | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  renewsAt: Date | null;
 
   @CreateDateColumn()
   createdAt: Date;
