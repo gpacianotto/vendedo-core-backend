@@ -14,6 +14,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { CustomersModule } from './modules/customers/customers.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { FollowUpsModule } from './modules/follow-ups/follow-ups.module';
+import { MessagingModule } from './modules/messaging/messaging.module';
 import { OpportunitiesModule } from './modules/opportunities/opportunities.module';
 
 @Module({
@@ -32,6 +33,7 @@ import { OpportunitiesModule } from './modules/opportunities/opportunities.modul
     OpportunitiesModule,
     FollowUpsModule,
     DashboardModule,
+    MessagingModule,
   ],
   controllers: [AppController],
   providers: [
